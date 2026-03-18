@@ -1,19 +1,28 @@
 import { useState } from 'react';
 import { serverConfig } from '@/lib/mock-data';
+import { motion } from 'framer-motion';
 
 export default function AdminServer() {
   const [config, setConfig] = useState(serverConfig);
+  const [saved, setSaved] = useState(false);
 
   const updateField = (field: string, value: string) => {
     setConfig({ ...config, [field]: value });
   };
 
+  const handleSave = () => {
+    setSaved(true);
+    setTimeout(() => setSaved(false), 3000);
+  };
+
   return (
-    <div className="space-y-6 animate-slide-in">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground tracking-tight">Configuration Serveur</h1>
+    <div className="space-y-6">
+      <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
+        <h1 className="text-2xl font-display font-bold tracking-tight">
+          <span className="text-gradient-primary">Configuration Serveur</span>
+        </h1>
         <p className="text-muted-foreground text-sm mt-1">Paramètres du serveur VPS</p>
-      </div>
+      </motion.div>
 
       <div className="glass-card p-6 max-w-2xl">
         <div className="space-y-4">
@@ -25,7 +34,7 @@ export default function AdminServer() {
             { key: 'openvpnDownload', label: 'OpenVPN Download URL', placeholder: 'https://...' },
           ].map(({ key, label, placeholder }) => (
             <div key={key}>
-              <label className="text-xs uppercase tracking-widest text-muted-foreground mb-2 block">{label}</label>
+              <label className="text-xs uppercase tracking-widest text-muted-foreground mb-2 block font-semibold">{label}</label>
               <input
                 value={(config as any)[key]}
                 onChange={e => updateField(key, e.target.value)}
@@ -35,7 +44,14 @@ export default function AdminServer() {
             </div>
           ))}
         </div>
-        <button className="btn-primary mt-6">Sauvegarder</button>
+        <div className="flex items-center gap-3 mt-6">
+          <button onClick={handleSave} className="btn-primary">Sauvegarder</button>
+          {saved && (
+            <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-sm text-success">
+              ✓ Sauvegardé
+            </motion.span>
+          )}
+        </div>
       </div>
     </div>
   );
