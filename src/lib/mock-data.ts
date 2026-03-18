@@ -1,4 +1,4 @@
-import { User, Protocol, VPNAccount, ServerConfig, DashboardStats } from './types';
+import { User, Protocol, VPNAccount, ServerConfig, DashboardStats, SiteSettings } from './types';
 
 export const serverConfig: ServerConfig = {
   ip: '45.41.206.33',
@@ -6,6 +6,21 @@ export const serverConfig: ServerConfig = {
   nsDomain: 'blue.camtel.eu.cc',
   slowdnsPub: '3c80f158747e724d61dc94b610198a65ab0183b657cf373f606993bb66731e5a',
   openvpnDownload: 'https://joel.camtel.eu.cc:2081',
+};
+
+export const defaultSiteSettings: SiteSettings = {
+  siteName: 'Nexus Pro Panel',
+  sitePort: 8443,
+  primaryColor: '#8a2be2',
+  accentColor: '#ff0080',
+  logoText: 'NEXUS PRO',
+  footerText: '© 2026 Nexus Pro Panel. All rights reserved.',
+  maintenanceMode: false,
+  registrationEnabled: true,
+  maxResellersPerAdmin: 100,
+  defaultResellerDuration: 30,
+  telegramBot: '',
+  telegramChannel: '',
 };
 
 export const protocols: Protocol[] = [
@@ -104,16 +119,10 @@ export const protocols: Protocol[] = [
   },
 ];
 
-export const mockResellers: User[] = [
-  { id: '1', username: 'reseller_alpha', role: 'reseller', credits: 45, maxCredits: 90, expiryDate: '2026-06-18', createdAt: '2026-01-15', isActive: true },
-  { id: '2', username: 'reseller_beta', role: 'reseller', credits: 120, maxCredits: 360, expiryDate: '2027-01-15', createdAt: '2025-12-01', isActive: true },
-  { id: '3', username: 'reseller_gamma', role: 'reseller', credits: 0, maxCredits: 30, expiryDate: '2026-03-20', createdAt: '2026-02-20', isActive: false },
-];
-
 export const mockAccounts: VPNAccount[] = [
   {
     id: 'acc1', protocol: 'ssh', username: 'testssh', password: 'testssh',
-    expiryDate: '2026-03-19', createdAt: '2026-03-18', createdBy: '1',
+    expiryDate: '2026-03-19', createdAt: '2026-03-18', createdBy: 'res-1',
     serverIp: '45.41.206.33', domain: 'joel.camtel.eu.cc', nsDomain: 'blue.camtel.eu.cc',
     isActive: true, config: '',
   },

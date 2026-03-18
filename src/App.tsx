@@ -8,8 +8,11 @@ import LoginPage from "./pages/LoginPage";
 import DashboardLayout from "./components/DashboardLayout";
 import AdminDashboard from "./pages/AdminDashboard";
 import AdminResellers from "./pages/AdminResellers";
+import AdminAdmins from "./pages/AdminAdmins";
 import AdminProtocols from "./pages/AdminProtocols";
 import AdminServer from "./pages/AdminServer";
+import AdminAppearance from "./pages/AdminAppearance";
+import AdminSettings from "./pages/AdminSettings";
 import ResellerDashboard from "./pages/ResellerDashboard";
 import ResellerCreateAccount from "./pages/ResellerCreateAccount";
 import ResellerAccounts from "./pages/ResellerAccounts";
@@ -28,15 +31,20 @@ function AppRoutes() {
     );
   }
 
+  const isAdmin = user?.role === 'admin' || user?.role === 'super_admin';
+
   return (
     <Routes>
-      <Route path="/" element={<Navigate to={user?.role === 'admin' ? '/admin' : '/reseller'} replace />} />
+      <Route path="/" element={<Navigate to={isAdmin ? '/admin' : '/reseller'} replace />} />
       <Route element={<DashboardLayout />}>
         {/* Admin routes */}
         <Route path="/admin" element={<AdminDashboard />} />
         <Route path="/admin/resellers" element={<AdminResellers />} />
+        <Route path="/admin/admins" element={<AdminAdmins />} />
         <Route path="/admin/protocols" element={<AdminProtocols />} />
         <Route path="/admin/server" element={<AdminServer />} />
+        <Route path="/admin/appearance" element={<AdminAppearance />} />
+        <Route path="/admin/settings" element={<AdminSettings />} />
         {/* Reseller routes */}
         <Route path="/reseller" element={<ResellerDashboard />} />
         <Route path="/reseller/create" element={<ResellerCreateAccount />} />
