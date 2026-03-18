@@ -16,11 +16,17 @@ export default function AdminAdmins() {
   const isSuperAdmin = currentUser?.role === 'super_admin';
 
   const handleCreate = () => {
-    if (!newName.trim() || !newPassword.trim() || !isSuperAdmin) return;
+    if (!newName.trim() || !newPassword.trim()) return;
+    if (!isSuperAdmin) return;
+    // Check duplicate
+    if (users.some(u => u.username.toLowerCase() === newName.trim().toLowerCase())) {
+      alert('Ce nom d\'utilisateur existe déjà');
+      return;
+    }
     const now = new Date();
     const newAdmin: User = {
       id: Date.now().toString(),
-      username: newName,
+      username: newName.trim(),
       password: newPassword,
       role: 'admin',
       credits: 9999,
@@ -53,14 +59,9 @@ export default function AdminAdmins() {
           <p className="text-muted-foreground text-sm mt-1">{admins.length} administrateur(s)</p>
         </motion.div>
         {isSuperAdmin && (
-          <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={() => setShowCreate(!showCreate)}
-            className="btn-primary flex items-center gap-2 text-sm"
-          >
-            <Plus className="w-4 h-4" />
-            Ajouter Admin
+          <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
+            onClick={() => setShowCreate(!showCreate)} className="btn-primary flex items-center gap-2 text-sm">
+            <Plus className="w-4 h-4" /> Ajouter Admin
           </motion.button>
         )}
       </div>
@@ -102,28 +103,17 @@ export default function AdminAdmins() {
 
       <div className="glass-card overflow-hidden">
         <div className="grid grid-cols-5 gap-4 p-4 border-b border-border text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-semibold">
-          <span>Utilisateur</span>
-          <span>Rôle</span>
-          <span>Statut</span>
-          <span>Créé le</span>
-          <span className="text-right">Actions</span>
+          <span>Utilisateur</span><span>Rôle</span><span>Statut</span><span>Créé le</span><span className="text-right">Actions</span>
         </div>
         {admins.map((admin, i) => (
-          <motion.div
-            key={admin.id}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: i * 0.05 }}
-            className="grid grid-cols-5 gap-4 p-4 border-b border-border last:border-0 hover:bg-secondary/20 transition-all items-center"
-          >
+          <motion.div key={admin.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.05 }}
+            className="grid grid-cols-5 gap-4 p-4 border-b border-border last:border-0 hover:bg-secondary/20 transition-all items-center">
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-display font-bold"
                 style={{ background: admin.role === 'super_admin' ? 'linear-gradient(135deg, hsl(38 92% 50%), hsl(25 90% 45%))' : 'var(--gradient-primary)', color: 'white' }}>
                 {admin.username.charAt(0).toUpperCase()}
               </div>
-              <div>
-                <p className="text-sm font-mono text-foreground font-semibold">{admin.username}</p>
-              </div>
+              <p className="text-sm font-mono text-foreground font-semibold">{admin.username}</p>
             </div>
             <div className="flex items-center gap-1.5">
               {admin.role === 'super_admin' ? (
