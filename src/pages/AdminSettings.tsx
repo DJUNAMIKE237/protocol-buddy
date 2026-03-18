@@ -1,22 +1,19 @@
 import { useState } from 'react';
-import { defaultSiteSettings, serverConfig } from '@/lib/mock-data';
+import { getSiteSettings, saveSiteSettings, getServerConfig, saveServerConfig } from '@/lib/store';
 import { Settings, Globe, Shield, Bell, Server } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export default function AdminSettings() {
-  const [settings, setSettings] = useState(defaultSiteSettings);
-  const [config, setConfig] = useState(serverConfig);
+  const [settings, setSettings] = useState(getSiteSettings());
+  const [config, setConfig] = useState(getServerConfig());
   const [saved, setSaved] = useState(false);
 
-  const update = (field: string, value: any) => {
-    setSettings(prev => ({ ...prev, [field]: value }));
-  };
-
-  const updateConfig = (field: string, value: string) => {
-    setConfig(prev => ({ ...prev, [field]: value }));
-  };
+  const update = (field: string, value: any) => setSettings(prev => ({ ...prev, [field]: value }));
+  const updateConfig = (field: string, value: string) => setConfig(prev => ({ ...prev, [field]: value }));
 
   const handleSave = () => {
+    saveSiteSettings(settings);
+    saveServerConfig(config);
     setSaved(true);
     setTimeout(() => setSaved(false), 3000);
   };
@@ -31,11 +28,9 @@ export default function AdminSettings() {
       </motion.div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Server Config */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="glass-card p-6">
           <h3 className="text-lg font-display font-semibold text-foreground mb-4 flex items-center gap-2">
-            <Server className="w-5 h-5 text-primary" />
-            Serveur VPS
+            <Server className="w-5 h-5 text-primary" /> Serveur VPS
           </h3>
           <div className="space-y-4">
             {[
@@ -47,23 +42,20 @@ export default function AdminSettings() {
             ].map(({ key, label }) => (
               <div key={key}>
                 <label className="text-xs uppercase tracking-widest text-muted-foreground mb-2 block font-semibold">{label}</label>
-                <input value={(config as any)[key]} onChange={e => updateConfig(key, e.target.value)} className="input-dark w-full font-mono" />
+                <input value={(config as any)[key] || ''} onChange={e => updateConfig(key, e.target.value)} className="input-dark w-full font-mono" />
               </div>
             ))}
           </div>
         </motion.div>
 
-        {/* General Settings */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="glass-card p-6">
           <h3 className="text-lg font-display font-semibold text-foreground mb-4 flex items-center gap-2">
-            <Settings className="w-5 h-5 text-accent" />
-            Général
+            <Settings className="w-5 h-5 text-accent" /> Général
           </h3>
           <div className="space-y-4">
             <div>
               <label className="text-xs uppercase tracking-widest text-muted-foreground mb-2 block font-semibold">Port du Site</label>
               <input type="number" value={settings.sitePort} onChange={e => update('sitePort', parseInt(e.target.value))} className="input-dark w-full font-mono" />
-              <p className="text-xs text-muted-foreground mt-1">Port personnalisé pour accéder au panel</p>
             </div>
             <div>
               <label className="text-xs uppercase tracking-widest text-muted-foreground mb-2 block font-semibold">Max Revendeurs par Admin</label>
@@ -76,11 +68,9 @@ export default function AdminSettings() {
           </div>
         </motion.div>
 
-        {/* Security */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="glass-card p-6">
           <h3 className="text-lg font-display font-semibold text-foreground mb-4 flex items-center gap-2">
-            <Shield className="w-5 h-5 text-success" />
-            Sécurité
+            <Shield className="w-5 h-5 text-success" /> Sécurité
           </h3>
           <div className="space-y-4">
             <div className="flex items-center justify-between">
@@ -93,24 +83,12 @@ export default function AdminSettings() {
                 <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-foreground transition-transform ${settings.maintenanceMode ? 'left-6' : 'left-0.5'}`} />
               </button>
             </div>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-semibold text-foreground">Inscription Revendeurs</p>
-                <p className="text-xs text-muted-foreground">Autoriser l'auto-inscription</p>
-              </div>
-              <button onClick={() => update('registrationEnabled', !settings.registrationEnabled)}
-                className={`relative w-12 h-6 rounded-full transition-all ${settings.registrationEnabled ? 'bg-gradient-primary' : 'bg-secondary'}`}>
-                <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-foreground transition-transform ${settings.registrationEnabled ? 'left-6' : 'left-0.5'}`} />
-              </button>
-            </div>
           </div>
         </motion.div>
 
-        {/* Telegram */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="glass-card p-6">
           <h3 className="text-lg font-display font-semibold text-foreground mb-4 flex items-center gap-2">
-            <Bell className="w-5 h-5 text-warning" />
-            Intégrations
+            <Bell className="w-5 h-5 text-warning" /> Intégrations
           </h3>
           <div className="space-y-4">
             <div>
@@ -127,11 +105,7 @@ export default function AdminSettings() {
 
       <div className="flex items-center gap-3">
         <button onClick={handleSave} className="btn-primary">Sauvegarder les Paramètres</button>
-        {saved && (
-          <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-sm text-success">
-            ✓ Paramètres sauvegardés
-          </motion.span>
-        )}
+        {saved && <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-sm text-success">✓ Paramètres sauvegardés</motion.span>}
       </div>
     </div>
   );

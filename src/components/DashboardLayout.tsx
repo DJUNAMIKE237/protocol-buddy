@@ -1,10 +1,23 @@
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation, Navigate } from 'react-router-dom';
+import { useAuth } from '@/lib/auth-context';
 import AppSidebar from '@/components/AppSidebar';
 
 export default function DashboardLayout() {
+  const { user } = useAuth();
+  const location = useLocation();
+
+  // Prevent resellers from accessing admin routes
+  if (user?.role === 'reseller' && location.pathname.startsWith('/admin')) {
+    return <Navigate to="/reseller" replace />;
+  }
+
+  // Prevent admins from accessing reseller routes
+  if ((user?.role === 'admin' || user?.role === 'super_admin') && location.pathname.startsWith('/reseller')) {
+    return <Navigate to="/admin" replace />;
+  }
+
   return (
     <div className="flex min-h-screen bg-background relative">
-      {/* Subtle background effects */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden">
         <div className="absolute top-0 right-0 w-[800px] h-[800px] rounded-full opacity-[0.03]"
           style={{ background: 'radial-gradient(circle, hsl(270 100% 65%) 0%, transparent 70%)' }} />

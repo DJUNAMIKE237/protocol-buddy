@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { defaultSiteSettings } from '@/lib/mock-data';
+import { getSiteSettings, saveSiteSettings } from '@/lib/store';
 import { Palette, Monitor, Type } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export default function AdminAppearance() {
-  const [settings, setSettings] = useState(defaultSiteSettings);
+  const [settings, setSettings] = useState(getSiteSettings());
   const [saved, setSaved] = useState(false);
 
   const update = (field: string, value: any) => {
@@ -13,6 +13,7 @@ export default function AdminAppearance() {
   };
 
   const handleSave = () => {
+    saveSiteSettings(settings);
     setSaved(true);
     setTimeout(() => setSaved(false), 3000);
   };
@@ -27,11 +28,9 @@ export default function AdminAppearance() {
       </motion.div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Branding */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="glass-card p-6">
           <h3 className="text-lg font-display font-semibold text-foreground mb-4 flex items-center gap-2">
-            <Type className="w-5 h-5 text-primary" />
-            Identité
+            <Type className="w-5 h-5 text-primary" /> Identité
           </h3>
           <div className="space-y-4">
             <div>
@@ -49,11 +48,9 @@ export default function AdminAppearance() {
           </div>
         </motion.div>
 
-        {/* Colors */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="glass-card p-6">
           <h3 className="text-lg font-display font-semibold text-foreground mb-4 flex items-center gap-2">
-            <Palette className="w-5 h-5 text-accent" />
-            Couleurs
+            <Palette className="w-5 h-5 text-accent" /> Couleurs
           </h3>
           <div className="space-y-4">
             <div>
@@ -75,8 +72,6 @@ export default function AdminAppearance() {
               </div>
             </div>
           </div>
-
-          {/* Preview */}
           <div className="mt-4 p-4 rounded-xl border border-border bg-background/50">
             <p className="text-xs text-muted-foreground mb-2 font-semibold uppercase tracking-widest">Aperçu</p>
             <div className="flex gap-3 items-center">
@@ -89,11 +84,9 @@ export default function AdminAppearance() {
           </div>
         </motion.div>
 
-        {/* Preview Panel */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="glass-card p-6 lg:col-span-2">
           <h3 className="text-lg font-display font-semibold text-foreground mb-4 flex items-center gap-2">
-            <Monitor className="w-5 h-5 text-primary" />
-            Aperçu Complet
+            <Monitor className="w-5 h-5 text-primary" /> Aperçu Complet
           </h3>
           <div className="rounded-xl border border-border bg-background/80 p-6">
             <div className="flex items-center gap-3 mb-6">
@@ -106,13 +99,6 @@ export default function AdminAppearance() {
                 <p className="text-xs text-muted-foreground">{settings.siteName}</p>
               </div>
             </div>
-            <div className="grid grid-cols-3 gap-3 mb-4">
-              {['Dashboard', 'Revendeurs', 'Protocoles'].map(label => (
-                <div key={label} className="p-3 rounded-lg border border-border text-center text-sm text-muted-foreground hover:border-primary/30 transition-colors cursor-pointer">
-                  {label}
-                </div>
-              ))}
-            </div>
             <div className="p-3 rounded-lg text-center text-sm"
               style={{ background: `linear-gradient(135deg, ${settings.primaryColor}, ${settings.accentColor})`, color: 'white' }}>
               Bouton Primaire
@@ -124,11 +110,7 @@ export default function AdminAppearance() {
 
       <div className="flex items-center gap-3">
         <button onClick={handleSave} className="btn-primary">Sauvegarder les Modifications</button>
-        {saved && (
-          <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-sm text-success">
-            ✓ Modifications sauvegardées
-          </motion.span>
-        )}
+        {saved && <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-sm text-success">✓ Modifications sauvegardées</motion.span>}
       </div>
     </div>
   );

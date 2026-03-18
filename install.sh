@@ -461,15 +461,15 @@ mkdir -p $NEXUS_DIR
 cd $NEXUS_DIR
 
 # Clone the GitHub repo (the panel source)
+GITHUB_REPO="https://github.com/DJUNAMIKE237/nexus-pro-panel.git"  # Update with your actual repo
 if [[ -d "$NEXUS_WEB" ]]; then
     cd $NEXUS_WEB && git pull > /dev/null 2>&1
 else
-    # The user should have their GitHub repo URL here
-    echo -e "${YELLOW}[INFO] Construction du panel web...${NC}"
-    mkdir -p $NEXUS_WEB
+    echo -e "${YELLOW}[INFO] Clonage du panel web...${NC}"
+    git clone $GITHUB_REPO $NEXUS_WEB > /dev/null 2>&1 || mkdir -p $NEXUS_WEB
 fi
 
-# If the web directory has package.json, build it
+# Build the web panel
 if [[ -f "$NEXUS_WEB/package.json" ]]; then
     cd $NEXUS_WEB
     npm install > /dev/null 2>&1
@@ -478,6 +478,22 @@ if [[ -f "$NEXUS_WEB/package.json" ]]; then
 else
     BUILD_DIR="$NEXUS_WEB"
 fi
+
+# Write nexus-config.json into the built web panel so the site can read it on first load
+cat > $BUILD_DIR/nexus-config.json << WEBCFGEOF
+{
+  "server_ip": "$SERVER_IP",
+  "domain": "$DOMAIN",
+  "ns_domain": "$NS_DOMAIN",
+  "panel_port": $PANEL_PORT,
+  "admin_user": "$ADMIN_USER",
+  "admin_pass": "$ADMIN_PASS",
+  "xray_uuid": "$XRAY_UUID",
+  "slowdns_pub": "$SLOWDNS_PUB",
+  "openvpn_download": "https://$DOMAIN:2081"
+}
+WEBCFGEOF
+echo -e "${GREEN}[✓] Configuration web injectée${NC}"
 
 # Nginx configuration
 cat > /etc/nginx/sites-available/nexus-panel << NGINXEOF
