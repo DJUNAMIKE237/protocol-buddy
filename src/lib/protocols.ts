@@ -1,0 +1,97 @@
+import { Protocol } from './types';
+
+export const defaultProtocols: Protocol[] = [
+  {
+    id: 'ssh',
+    name: 'SSH',
+    description: 'SSH WebSocket avec Stunnel, Dropbear et OpenSSH',
+    icon: '🔑',
+    isEnabled: true,
+    ports: [
+      { service: 'OpenSSH', transport: 'TCP', tls: '22', ntls: '22' },
+      { service: 'Dropbear', transport: 'TCP', tls: '109, 143', ntls: '109, 143' },
+      { service: 'Stunnel', transport: 'TCP', tls: '447, 777', ntls: '-' },
+      { service: 'WS', transport: 'WebSocket', tls: '443', ntls: '80' },
+      { service: 'UDPGW', transport: 'UDP', tls: '7100-7900', ntls: '-' },
+      { service: 'Squid', transport: 'TCP', tls: '3128, 8080', ntls: '-' },
+    ],
+  },
+  {
+    id: 'vmess',
+    name: 'VMess',
+    description: 'VMess WebSocket & gRPC',
+    icon: '⚡',
+    isEnabled: true,
+    ports: [
+      { service: 'VMess WS', transport: 'WebSocket', tls: '443', ntls: '80' },
+      { service: 'VMess gRPC', transport: 'gRPC', tls: '443', ntls: '-' },
+      { service: 'VMess Custom', transport: 'WebSocket', tls: '2083', ntls: '2082' },
+    ],
+  },
+  {
+    id: 'vless',
+    name: 'VLESS',
+    description: 'VLESS WebSocket & gRPC',
+    icon: '🚀',
+    isEnabled: true,
+    ports: [
+      { service: 'VLESS WS', transport: 'WebSocket', tls: '443', ntls: '80' },
+      { service: 'VLESS gRPC', transport: 'gRPC', tls: '443', ntls: '-' },
+      { service: 'VLESS Custom', transport: 'WebSocket', tls: '2087', ntls: '2086' },
+    ],
+  },
+  {
+    id: 'trojan',
+    name: 'Trojan',
+    description: 'Trojan WebSocket & gRPC',
+    icon: '🛡️',
+    isEnabled: true,
+    ports: [
+      { service: 'Trojan WS', transport: 'WebSocket', tls: '443', ntls: '80' },
+      { service: 'Trojan gRPC', transport: 'gRPC', tls: '443', ntls: '-' },
+    ],
+  },
+  {
+    id: 'socks',
+    name: 'SOCKS',
+    description: 'SOCKS5 WebSocket & gRPC',
+    icon: '🧦',
+    isEnabled: true,
+    ports: [
+      { service: 'SOCKS WS', transport: 'WebSocket', tls: '443', ntls: '80' },
+      { service: 'SOCKS gRPC', transport: 'gRPC', tls: '443', ntls: '-' },
+    ],
+  },
+  {
+    id: 'openvpn',
+    name: 'OpenVPN',
+    description: 'OpenVPN TCP/UDP/SSL avec OHP',
+    icon: '🔐',
+    isEnabled: true,
+    ports: [
+      { service: 'OpenVPN TCP', transport: 'TCP', tls: '1194', ntls: '-' },
+      { service: 'OpenVPN SSL', transport: 'SSL', tls: '2200', ntls: '-' },
+      { service: 'OHP', transport: 'TCP', tls: '8000', ntls: '-' },
+    ],
+  },
+  {
+    id: 'slowdns',
+    name: 'Slow DNS',
+    description: 'DNS Tunneling sur tous les ports',
+    icon: '🌐',
+    isEnabled: true,
+    ports: [
+      { service: 'SlowDNS', transport: 'DNS', tls: '22,53,5300,80,443', ntls: '-' },
+    ],
+  },
+  {
+    id: 'udp-custom',
+    name: 'UDP Custom',
+    description: 'UDP Custom sur tous les ports',
+    icon: '📡',
+    isEnabled: true,
+    ports: [
+      { service: 'UDP Custom', transport: 'UDP', tls: '1-65535', ntls: '-' },
+    ],
+  },
+];
