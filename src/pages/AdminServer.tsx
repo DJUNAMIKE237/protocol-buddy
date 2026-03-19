@@ -1,5 +1,7 @@
-import { useState } from 'react';
-import { getServerConfig, saveServerConfig } from '@/lib/store';
+import { useState, useEffect } from 'react';
+import * as api from '@/lib/api';
+import { ServerConfig } from '@/lib/types';
+import { toast } from 'sonner';
 import { motion } from 'framer-motion';
 
 export default function AdminServer() {
