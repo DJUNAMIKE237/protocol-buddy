@@ -5,18 +5,17 @@ import { toast } from 'sonner';
 import { motion } from 'framer-motion';
 
 export default function AdminServer() {
-  const [config, setConfig] = useState(getServerConfig());
-  const [saved, setSaved] = useState(false);
-
-  const updateField = (field: string, value: string) => {
-    setConfig(prev => ({ ...prev, [field]: value }));
+  const [config, setConfig] = useState<ServerConfig | null>(null);
+  const [saving, setSaving] = useState(false);
+  useEffect(() => { api.getServerConfig().then(setConfig).catch(() => {}); }, []);
+  const updateField = (field: string, value: string) => setConfig(prev => prev ? { ...prev, [field]: value } : prev);
+  const handleSave = async () => {
+    if (!config) return;
+    setSaving(true);
+    try { await api.saveServerConfig(config); toast.success('Sauvegardé'); } catch (err: any) { toast.error(err.message); }
+    setSaving(false);
   };
-
-  const handleSave = () => {
-    saveServerConfig(config);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
-  };
+  if (!config) return <div className="p-8 text-center text-muted-foreground">Chargement...</div>;
 
   return (
     <div className="space-y-6">
