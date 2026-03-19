@@ -1,22 +1,34 @@
-import { useState } from 'react';
-import { getSiteSettings, saveSiteSettings, getServerConfig, saveServerConfig } from '@/lib/store';
+import { useState, useEffect } from 'react';
+import * as api from '@/lib/api';
 import { Settings, Globe, Shield, Bell, Server } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { toast } from 'sonner';
+import { ServerConfig, SiteSettings } from '@/lib/types';
 
 export default function AdminSettings() {
-  const [settings, setSettings] = useState(getSiteSettings());
-  const [config, setConfig] = useState(getServerConfig());
-  const [saved, setSaved] = useState(false);
+  const [settings, setSettings] = useState<SiteSettings | null>(null);
+  const [config, setConfig] = useState<ServerConfig | null>(null);
+  const [saving, setSaving] = useState(false);
 
-  const update = (field: string, value: any) => setSettings(prev => ({ ...prev, [field]: value }));
-  const updateConfig = (field: string, value: string) => setConfig(prev => ({ ...prev, [field]: value }));
+  useEffect(() => {
+    api.getSiteSettings().then(setSettings).catch(() => {});
+    api.getServerConfig().then(setConfig).catch(() => {});
+  }, []);
 
-  const handleSave = () => {
-    saveSiteSettings(settings);
-    saveServerConfig(config);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
+  const update = (field: string, value: any) => setSettings(prev => prev ? { ...prev, [field]: value } : prev);
+  const updateConfig = (field: string, value: string) => setConfig(prev => prev ? { ...prev, [field]: value } : prev);
+
+  const handleSave = async () => {
+    if (!settings || !config) return;
+    setSaving(true);
+    try {
+      await Promise.all([api.saveSiteSettings(settings), api.saveServerConfig(config)]);
+      toast.success('Paramètres sauvegardés');
+    } catch (err: any) { toast.error(err.message); }
+    setSaving(false);
   };
+
+  if (!settings || !config) return <div className="text-center text-muted-foreground p-8">Chargement...</div>;
 
   return (
     <div className="space-y-6">
@@ -104,8 +116,9 @@ export default function AdminSettings() {
       </div>
 
       <div className="flex items-center gap-3">
-        <button onClick={handleSave} className="btn-primary">Sauvegarder les Paramètres</button>
-        {saved && <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-sm text-success">✓ Paramètres sauvegardés</motion.span>}
+        <button onClick={handleSave} disabled={saving} className="btn-primary">
+          {saving ? 'Sauvegarde...' : 'Sauvegarder les Paramètres'}
+        </button>
       </div>
     </div>
   );

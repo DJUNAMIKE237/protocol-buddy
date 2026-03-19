@@ -1,14 +1,15 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/auth-context';
-import { getProtocols } from '@/lib/store';
-import { User, ProtocolQuota } from '@/lib/types';
+import * as api from '@/lib/api';
+import { User, ProtocolQuota, Protocol } from '@/lib/types';
 import { Plus, Trash2, UserCheck, UserX, Eye, EyeOff, Search } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { toast } from 'sonner';
 
 export default function AdminResellers() {
-  const { user: currentUser, users, addUser, removeUser, toggleUserActive } = useAuth();
+  const { user: currentUser, users, refreshUsers } = useAuth();
   const resellers = users.filter(u => u.role === 'reseller');
-  const protocols = getProtocols();
+  const [protocols, setProtocols] = useState<Protocol[]>([]);
 
   const [showCreate, setShowCreate] = useState(false);
   const [newName, setNewName] = useState('');
@@ -21,47 +22,52 @@ export default function AdminResellers() {
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive'>('all');
   const [selectedProtocols, setSelectedProtocols] = useState<Record<string, boolean>>({});
   const [protocolLimits, setProtocolLimits] = useState<Record<string, number>>({});
+  const [creating, setCreating] = useState(false);
+
+  useEffect(() => {
+    api.getProtocols().then(setProtocols).catch(() => {});
+  }, []);
 
   const toggleProtocol = (id: string) => setSelectedProtocols(prev => ({ ...prev, [id]: !prev[id] }));
   const setLimit = (id: string, limit: number) => setProtocolLimits(prev => ({ ...prev, [id]: limit }));
 
-  const handleCreate = () => {
-    if (!newName.trim() || !newPassword.trim()) return;
-    // Check duplicate username
-    if (users.some(u => u.username.toLowerCase() === newName.trim().toLowerCase())) {
-      alert('Ce nom d\'utilisateur existe déjà');
-      return;
+  const handleCreate = async () => {
+    if (!newName.trim() || !newPassword.trim() || creating) return;
+    setCreating(true);
+    try {
+      const days = useCustomDuration ? parseInt(customDuration) || 30 : parseInt(newDuration);
+      const expiry = new Date(Date.now() + days * 86400000).toISOString().split('T')[0];
+      const bouquet = protocols
+        .filter(p => selectedProtocols[p.id])
+        .map(p => ({ protocolId: p.id, maxAccounts: protocolLimits[p.id] || 10 }));
+
+      await api.createUser({
+        username: newName.trim(), password: newPassword, role: 'reseller',
+        credits: days, maxCredits: days, expiryDate: expiry, bouquet,
+      });
+      toast.success('Revendeur créé avec succès');
+      await refreshUsers();
+      setNewName(''); setNewPassword(''); setShowCreate(false);
+      setSelectedProtocols({}); setProtocolLimits({});
+    } catch (err: any) {
+      toast.error(err.message || 'Erreur lors de la création');
     }
-    const now = new Date();
-    const days = useCustomDuration ? parseInt(customDuration) || 30 : parseInt(newDuration);
-    const expiry = new Date(now.getTime() + days * 86400000);
+    setCreating(false);
+  };
 
-    const bouquet: ProtocolQuota[] = protocols
-      .filter(p => selectedProtocols[p.id])
-      .map(p => ({ protocolId: p.id, maxAccounts: protocolLimits[p.id] || 10, usedAccounts: 0 }));
+  const handleDelete = async (id: string) => {
+    try {
+      await api.deleteUser(id);
+      toast.success('Revendeur supprimé');
+      await refreshUsers();
+    } catch (err: any) { toast.error(err.message); }
+  };
 
-    const newReseller: User = {
-      id: Date.now().toString(),
-      username: newName.trim(),
-      password: newPassword,
-      role: 'reseller',
-      credits: days,
-      maxCredits: days,
-      expiryDate: expiry.toISOString().split('T')[0],
-      createdAt: now.toISOString().split('T')[0],
-      createdBy: currentUser?.id,
-      isActive: true,
-      bouquet,
-    };
-
-    addUser(newReseller);
-    setNewName('');
-    setNewPassword('');
-    setShowCreate(false);
-    setSelectedProtocols({});
-    setProtocolLimits({});
-    setUseCustomDuration(false);
-    setCustomDuration('');
+  const handleToggle = async (id: string) => {
+    try {
+      await api.toggleUser(id);
+      await refreshUsers();
+    } catch (err: any) { toast.error(err.message); }
   };
 
   const filtered = resellers.filter(r => {
@@ -70,7 +76,6 @@ export default function AdminResellers() {
     return matchSearch && matchStatus;
   });
 
-  // Calculate remaining time for each reseller
   const getRemainingDays = (expiryDate: string) => {
     const diff = new Date(expiryDate).getTime() - Date.now();
     if (diff <= 0) return 'Expiré';
@@ -89,8 +94,7 @@ export default function AdminResellers() {
         </motion.div>
         <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
           onClick={() => setShowCreate(!showCreate)} className="btn-primary flex items-center gap-2 text-sm">
-          <Plus className="w-4 h-4" />
-          Ajouter Revendeur
+          <Plus className="w-4 h-4" /> Ajouter Revendeur
         </motion.button>
       </div>
 
@@ -167,7 +171,9 @@ export default function AdminResellers() {
               </div>
 
               <div className="flex gap-3 mt-6">
-                <button onClick={handleCreate} className="btn-primary" disabled={!newName.trim() || !newPassword.trim()}>Créer le Revendeur</button>
+                <button onClick={handleCreate} className="btn-primary" disabled={!newName.trim() || !newPassword.trim() || creating}>
+                  {creating ? 'Création...' : 'Créer le Revendeur'}
+                </button>
                 <button onClick={() => setShowCreate(false)} className="btn-ghost">Annuler</button>
               </div>
             </div>
@@ -198,7 +204,6 @@ export default function AdminResellers() {
               className="grid grid-cols-7 gap-4 p-4 border-b border-border last:border-0 hover:bg-secondary/20 transition-all items-center">
               <div>
                 <p className="text-sm font-mono text-foreground font-semibold">{reseller.username}</p>
-                <p className="text-xs text-muted-foreground">ID: {reseller.id.slice(0, 8)}</p>
               </div>
               <div>
                 <span className={`protocol-badge ${reseller.isActive ? 'border-success/30 text-success bg-success/10' : 'border-destructive/30 text-destructive bg-destructive/10'}`}>
@@ -222,11 +227,11 @@ export default function AdminResellers() {
               <p className="text-sm text-muted-foreground font-mono">{reseller.expiryDate}</p>
               <p className="text-sm text-muted-foreground font-mono">{reseller.createdAt}</p>
               <div className="flex items-center justify-end gap-1">
-                <button onClick={() => toggleUserActive(reseller.id)}
+                <button onClick={() => handleToggle(reseller.id)}
                   className={`p-2 rounded-lg transition-colors ${reseller.isActive ? 'hover:bg-warning/10 text-warning' : 'hover:bg-success/10 text-success'}`}>
                   {reseller.isActive ? <UserX className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
                 </button>
-                <button onClick={() => removeUser(reseller.id)}
+                <button onClick={() => handleDelete(reseller.id)}
                   className="p-2 rounded-lg hover:bg-destructive/10 text-destructive transition-colors">
                   <Trash2 className="w-4 h-4" />
                 </button>

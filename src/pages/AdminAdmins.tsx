@@ -1,52 +1,54 @@
 import { useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
-import { User } from '@/lib/types';
+import * as api from '@/lib/api';
 import { Plus, Trash2, Crown, Shield, UserX, UserCheck, Eye, EyeOff } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { toast } from 'sonner';
 
 export default function AdminAdmins() {
-  const { user: currentUser, users, addUser, removeUser, toggleUserActive } = useAuth();
+  const { user: currentUser, users, refreshUsers } = useAuth();
   const admins = users.filter(u => u.role === 'admin' || u.role === 'super_admin');
 
   const [showCreate, setShowCreate] = useState(false);
   const [newName, setNewName] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [creating, setCreating] = useState(false);
 
   const isSuperAdmin = currentUser?.role === 'super_admin';
 
-  const handleCreate = () => {
-    if (!newName.trim() || !newPassword.trim()) return;
-    if (!isSuperAdmin) return;
-    // Check duplicate
-    if (users.some(u => u.username.toLowerCase() === newName.trim().toLowerCase())) {
-      alert('Ce nom d\'utilisateur existe déjà');
-      return;
+  const handleCreate = async () => {
+    if (!newName.trim() || !newPassword.trim() || !isSuperAdmin || creating) return;
+    setCreating(true);
+    try {
+      await api.createUser({
+        username: newName.trim(), password: newPassword, role: 'admin',
+        credits: 9999, maxCredits: 9999, expiryDate: '2099-12-31',
+      });
+      toast.success('Administrateur créé');
+      await refreshUsers();
+      setNewName(''); setNewPassword(''); setShowCreate(false);
+    } catch (err: any) {
+      toast.error(err.message);
     }
-    const now = new Date();
-    const newAdmin: User = {
-      id: Date.now().toString(),
-      username: newName.trim(),
-      password: newPassword,
-      role: 'admin',
-      credits: 9999,
-      maxCredits: 9999,
-      expiryDate: '2099-12-31',
-      createdAt: now.toISOString().split('T')[0],
-      createdBy: currentUser?.id,
-      isActive: true,
-    };
-    addUser(newAdmin);
-    setNewName('');
-    setNewPassword('');
-    setShowCreate(false);
+    setCreating(false);
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     const target = users.find(u => u.id === id);
-    if (target?.role === 'super_admin') return;
-    if (currentUser?.role !== 'super_admin') return;
-    removeUser(id);
+    if (target?.role === 'super_admin' || !isSuperAdmin) return;
+    try {
+      await api.deleteUser(id);
+      toast.success('Admin supprimé');
+      await refreshUsers();
+    } catch (err: any) { toast.error(err.message); }
+  };
+
+  const handleToggle = async (id: string) => {
+    try {
+      await api.toggleUser(id);
+      await refreshUsers();
+    } catch (err: any) { toast.error(err.message); }
   };
 
   return (
@@ -93,7 +95,9 @@ export default function AdminAdmins() {
                 </div>
               </div>
               <div className="flex gap-3 mt-4">
-                <button onClick={handleCreate} className="btn-primary" disabled={!newName.trim() || !newPassword.trim()}>Créer l'Admin</button>
+                <button onClick={handleCreate} className="btn-primary" disabled={!newName.trim() || !newPassword.trim() || creating}>
+                  {creating ? 'Création...' : "Créer l'Admin"}
+                </button>
                 <button onClick={() => setShowCreate(false)} className="btn-ghost">Annuler</button>
               </div>
             </div>
@@ -131,7 +135,7 @@ export default function AdminAdmins() {
             <div className="flex items-center justify-end gap-1">
               {admin.role !== 'super_admin' && isSuperAdmin && (
                 <>
-                  <button onClick={() => toggleUserActive(admin.id)}
+                  <button onClick={() => handleToggle(admin.id)}
                     className={`p-2 rounded-lg transition-colors ${admin.isActive ? 'hover:bg-warning/10 text-warning' : 'hover:bg-success/10 text-success'}`}>
                     {admin.isActive ? <UserX className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
                   </button>

@@ -1,22 +1,19 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
-import { User, UserRole, ProtocolQuota, VPNAccount } from '@/lib/types';
-import * as store from '@/lib/store';
+import { User, VPNAccount } from '@/lib/types';
+import * as api from '@/lib/api';
 
 interface AuthContextType {
   user: User | null;
   users: User[];
   accounts: VPNAccount[];
-  login: (username: string, password: string) => boolean;
+  login: (username: string, password: string) => Promise<boolean>;
   logout: () => void;
   isAuthenticated: boolean;
   isReady: boolean;
-  addUser: (user: User) => void;
-  removeUser: (id: string) => boolean;
-  updateUser: (id: string, updates: Partial<User>) => void;
-  toggleUserActive: (id: string) => void;
-  addAccount: (account: VPNAccount) => void;
-  removeAccount: (id: string) => void;
-  refreshData: () => void;
+  hasAdminAccount: boolean;
+  refreshUsers: () => Promise<void>;
+  refreshAccounts: () => Promise<void>;
+  refreshAll: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -26,149 +23,110 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [users, setUsers] = useState<User[]>([]);
   const [accounts, setAccounts] = useState<VPNAccount[]>([]);
   const [isReady, setIsReady] = useState(false);
+  const [hasAdminAccount, setHasAdminAccount] = useState(true);
 
-  // Initialize: try loading from server config, then localStorage
   useEffect(() => {
     const init = async () => {
-      await store.initializeFromServer();
-      store.checkExpirations();
-      setUsers(store.getUsers());
-      setAccounts(store.getAccounts());
+      try {
+        const hasA = await api.hasAdmin();
+        setHasAdminAccount(hasA);
+
+        if (api.isLoggedIn()) {
+          try {
+            const me = await api.getMe();
+            setUser(me);
+            // Load data based on role
+            if (me.role === 'super_admin' || me.role === 'admin') {
+              const [u, a] = await Promise.all([api.getUsers(), api.getAccounts()]);
+              setUsers(u);
+              setAccounts(a);
+            } else {
+              const a = await api.getAccounts();
+              setAccounts(a);
+            }
+          } catch {
+            api.logout();
+          }
+        }
+      } catch {
+        // API not available - probably not deployed yet
+      }
       setIsReady(true);
     };
     init();
   }, []);
 
-  // Periodic expiration check every 60s
+  // Periodic refresh every 30s
   useEffect(() => {
-    const interval = setInterval(() => {
-      store.checkExpirations();
-      setUsers(store.getUsers());
-      setAccounts(store.getAccounts());
-    }, 60000);
+    if (!user) return;
+    const interval = setInterval(async () => {
+      try {
+        const me = await api.getMe();
+        setUser(me);
+        if (me.role !== 'reseller') {
+          const [u, a] = await Promise.all([api.getUsers(), api.getAccounts()]);
+          setUsers(u);
+          setAccounts(a);
+        } else {
+          setAccounts(await api.getAccounts());
+        }
+      } catch {}
+    }, 30000);
     return () => clearInterval(interval);
-  }, []);
+  }, [user]);
 
-  const refreshData = useCallback(() => {
-    setUsers(store.getUsers());
-    setAccounts(store.getAccounts());
-    // Also refresh current user if logged in
-    setUser(prev => {
-      if (!prev) return null;
-      const updated = store.getUsers().find(u => u.id === prev.id);
-      return updated && updated.isActive ? updated : null;
-    });
-  }, []);
-
-  const login = useCallback((username: string, password: string): boolean => {
-    const allUsers = store.getUsers();
-    const found = allUsers.find(u => u.username === username && u.password === password && u.isActive);
-    if (found) {
-      setUser(found);
-      setUsers(allUsers);
-      setAccounts(store.getAccounts());
-      store.addActivity({ action: 'Connexion', user: username });
+  const login = useCallback(async (username: string, password: string): Promise<boolean> => {
+    try {
+      const data = await api.login(username, password);
+      setUser(data.user);
+      setHasAdminAccount(true);
+      if (data.user.role !== 'reseller') {
+        const [u, a] = await Promise.all([api.getUsers(), api.getAccounts()]);
+        setUsers(u);
+        setAccounts(a);
+      } else {
+        setAccounts(await api.getAccounts());
+      }
       return true;
+    } catch {
+      return false;
     }
-    return false;
   }, []);
 
   const logout = useCallback(() => {
-    if (user) store.addActivity({ action: 'Déconnexion', user: user.username });
+    api.logout();
     setUser(null);
-  }, [user]);
+    setUsers([]);
+    setAccounts([]);
+  }, []);
 
-  const addUser = useCallback((newUser: User) => {
-    store.addUser(newUser);
-    store.addActivity({
-      action: newUser.role === 'reseller' ? 'Revendeur créé' : 'Admin créé',
-      user: user?.username || 'system',
-      target: newUser.username,
-    });
-    refreshData();
-  }, [user, refreshData]);
+  const refreshUsers = useCallback(async () => {
+    try { setUsers(await api.getUsers()); } catch {}
+  }, []);
 
-  const removeUser = useCallback((id: string): boolean => {
-    const target = store.getUsers().find(u => u.id === id);
-    if (!target) return false;
-    const result = store.removeUser(id);
-    if (result) {
-      store.addActivity({
-        action: target.role === 'reseller' ? 'Revendeur supprimé' : 'Admin supprimé',
-        user: user?.username || 'system',
-        target: target.username,
-      });
-      refreshData();
-    }
-    return result;
-  }, [user, refreshData]);
+  const refreshAccounts = useCallback(async () => {
+    try { setAccounts(await api.getAccounts()); } catch {}
+  }, []);
 
-  const updateUser = useCallback((id: string, updates: Partial<User>) => {
-    store.updateUser(id, updates);
-    refreshData();
-  }, [refreshData]);
-
-  const toggleUserActive = useCallback((id: string) => {
-    store.toggleUserActive(id);
-    const target = store.getUsers().find(u => u.id === id);
-    if (target) {
-      store.addActivity({
-        action: target.isActive ? 'Compte activé' : 'Compte désactivé',
-        user: user?.username || 'system',
-        target: target.username,
-      });
-    }
-    refreshData();
-  }, [user, refreshData]);
-
-  const addAccount = useCallback((account: VPNAccount) => {
-    store.addAccount(account);
-    store.addActivity({
-      action: `Compte ${account.protocol.toUpperCase()} créé`,
-      user: user?.username || 'system',
-      target: account.username,
-      protocol: account.protocol,
-    });
-    // Update bouquet usage for the reseller
-    if (user?.role === 'reseller' && user.bouquet) {
-      const updatedBouquet = user.bouquet.map(b =>
-        b.protocolId === account.protocol
-          ? { ...b, usedAccounts: b.usedAccounts + 1 }
-          : b
-      );
-      store.updateUser(user.id, { bouquet: updatedBouquet });
-    }
-    refreshData();
-  }, [user, refreshData]);
-
-  const removeAccount = useCallback((id: string) => {
-    const acc = store.getAccounts().find(a => a.id === id);
-    store.removeAccount(id);
-    if (acc && user?.role === 'reseller' && user.bouquet) {
-      const updatedBouquet = user.bouquet.map(b =>
-        b.protocolId === acc.protocol
-          ? { ...b, usedAccounts: Math.max(0, b.usedAccounts - 1) }
-          : b
-      );
-      store.updateUser(user.id, { bouquet: updatedBouquet });
-    }
-    if (acc) {
-      store.addActivity({
-        action: `Compte ${acc.protocol.toUpperCase()} supprimé`,
-        user: user?.username || 'system',
-        target: acc.username,
-        protocol: acc.protocol,
-      });
-    }
-    refreshData();
-  }, [user, refreshData]);
+  const refreshAll = useCallback(async () => {
+    try {
+      const me = await api.getMe();
+      setUser(me);
+      if (me.role !== 'reseller') {
+        const [u, a] = await Promise.all([api.getUsers(), api.getAccounts()]);
+        setUsers(u);
+        setAccounts(a);
+      } else {
+        setAccounts(await api.getAccounts());
+      }
+    } catch {}
+  }, []);
 
   return (
     <AuthContext.Provider value={{
       user, users, accounts, login, logout,
-      isAuthenticated: !!user, isReady,
-      addUser, removeUser, updateUser, toggleUserActive,
-      addAccount, removeAccount, refreshData,
+      isAuthenticated: !!user, isReady, hasAdminAccount,
+      refreshUsers, refreshAccounts, refreshAll,
     }}>
       {children}
     </AuthContext.Provider>

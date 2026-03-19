@@ -1,11 +1,10 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes, Navigate, useLocation } from "react-router-dom";
+import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/lib/auth-context";
 import LoginPage from "./pages/LoginPage";
-import SetupPage from "./pages/SetupPage";
 import DashboardLayout from "./components/DashboardLayout";
 import AdminDashboard from "./pages/AdminDashboard";
 import AdminResellers from "./pages/AdminResellers";
@@ -18,11 +17,9 @@ import ResellerDashboard from "./pages/ResellerDashboard";
 import ResellerCreateAccount from "./pages/ResellerCreateAccount";
 import ResellerAccounts from "./pages/ResellerAccounts";
 import NotFound from "./pages/NotFound";
-import { hasAdmin } from "@/lib/store";
 
 const queryClient = new QueryClient();
 
-// Route guard component
 function RequireRole({ allowed, children }: { allowed: ('super_admin' | 'admin' | 'reseller')[]; children: React.ReactNode }) {
   const { user } = useAuth();
   if (!user || !allowed.includes(user.role)) {
@@ -33,7 +30,7 @@ function RequireRole({ allowed, children }: { allowed: ('super_admin' | 'admin' 
 }
 
 function AppRoutes() {
-  const { isAuthenticated, user, isReady } = useAuth();
+  const { isAuthenticated, user, isReady, hasAdminAccount } = useAuth();
 
   if (!isReady) {
     return (
@@ -46,12 +43,22 @@ function AppRoutes() {
     );
   }
 
-  // If no admin exists and no nexus-config.json was loaded, show setup
-  if (!hasAdmin() && !isAuthenticated) {
+  if (!hasAdminAccount) {
     return (
-      <Routes>
-        <Route path="*" element={<SetupPage />} />
-      </Routes>
+      <div className="min-h-screen flex items-center justify-center bg-background px-4">
+        <div className="glass-card p-8 max-w-md text-center space-y-4">
+          <h1 className="text-2xl font-display font-bold text-gradient-primary">Installation Requise</h1>
+          <p className="text-muted-foreground text-sm">
+            Aucun compte administrateur détecté. Exécutez le script d'installation sur votre VPS pour créer le premier Super Admin.
+          </p>
+          <pre className="text-xs bg-secondary/50 p-3 rounded-lg text-foreground font-mono">
+            bash install.sh
+          </pre>
+          <p className="text-xs text-muted-foreground">
+            Le script configurera tous les protocoles VPN et créera votre compte administrateur.
+          </p>
+        </div>
+      </div>
     );
   }
 
@@ -69,7 +76,6 @@ function AppRoutes() {
     <Routes>
       <Route path="/" element={<Navigate to={isAdmin ? '/admin' : '/reseller'} replace />} />
       <Route element={<DashboardLayout />}>
-        {/* Admin routes - protected */}
         <Route path="/admin" element={<RequireRole allowed={['super_admin', 'admin']}><AdminDashboard /></RequireRole>} />
         <Route path="/admin/resellers" element={<RequireRole allowed={['super_admin', 'admin']}><AdminResellers /></RequireRole>} />
         <Route path="/admin/admins" element={<RequireRole allowed={['super_admin', 'admin']}><AdminAdmins /></RequireRole>} />
@@ -77,7 +83,6 @@ function AppRoutes() {
         <Route path="/admin/server" element={<RequireRole allowed={['super_admin']}><AdminServer /></RequireRole>} />
         <Route path="/admin/appearance" element={<RequireRole allowed={['super_admin', 'admin']}><AdminAppearance /></RequireRole>} />
         <Route path="/admin/settings" element={<RequireRole allowed={['super_admin']}><AdminSettings /></RequireRole>} />
-        {/* Reseller routes - protected */}
         <Route path="/reseller" element={<RequireRole allowed={['reseller']}><ResellerDashboard /></RequireRole>} />
         <Route path="/reseller/create" element={<RequireRole allowed={['reseller']}><ResellerCreateAccount /></RequireRole>} />
         <Route path="/reseller/accounts" element={<RequireRole allowed={['reseller']}><ResellerAccounts /></RequireRole>} />
