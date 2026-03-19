@@ -454,14 +454,13 @@ echo -e "${GREEN}[✓] SlowDNS configuré (PUB: ${SLOWDNS_PUB:0:20}...)${NC}"
 # ===========================
 # CONFIGURE NGINX + SSL + WEB PANEL
 # ===========================
-echo -e "${PURPLE}[7/8] ${WHITE}Configuration Nginx, SSL et Panel Web...${NC}"
+echo -e "${PURPLE}[7/9] ${WHITE}Configuration Nginx, SSL et Panel Web...${NC}"
 
-# Build the web panel
 mkdir -p $NEXUS_DIR
 cd $NEXUS_DIR
 
 # Clone the GitHub repo (the panel source)
-GITHUB_REPO="https://github.com/DJUNAMIKE237/nexus-pro-panel.git"  # Update with your actual repo
+GITHUB_REPO="https://github.com/DJUNAMIKE237/nexus-pro-panel.git"
 if [[ -d "$NEXUS_WEB" ]]; then
     cd $NEXUS_WEB && git pull > /dev/null 2>&1
 else
@@ -473,27 +472,50 @@ fi
 if [[ -f "$NEXUS_WEB/package.json" ]]; then
     cd $NEXUS_WEB
     npm install > /dev/null 2>&1
-    npm run build > /dev/null 2>&1
+    VITE_API_URL="https://$DOMAIN:$PANEL_PORT/api" npm run build > /dev/null 2>&1
     BUILD_DIR="$NEXUS_WEB/dist"
 else
     BUILD_DIR="$NEXUS_WEB"
 fi
 
-# Write nexus-config.json into the built web panel so the site can read it on first load
-cat > $BUILD_DIR/nexus-config.json << WEBCFGEOF
-{
-  "server_ip": "$SERVER_IP",
-  "domain": "$DOMAIN",
-  "ns_domain": "$NS_DOMAIN",
-  "panel_port": $PANEL_PORT,
-  "admin_user": "$ADMIN_USER",
-  "admin_pass": "$ADMIN_PASS",
-  "xray_uuid": "$XRAY_UUID",
-  "slowdns_pub": "$SLOWDNS_PUB",
-  "openvpn_download": "https://$DOMAIN:2081"
-}
-WEBCFGEOF
-echo -e "${GREEN}[✓] Configuration web injectée${NC}"
+# ===========================
+# INSTALL BACKEND API
+# ===========================
+echo -e "${PURPLE}[8/9] ${WHITE}Installation du Backend API...${NC}"
+
+BACKEND_DIR="$NEXUS_DIR/backend"
+if [[ -d "$NEXUS_WEB/backend" ]]; then
+    cp -r "$NEXUS_WEB/backend" "$BACKEND_DIR"
+else
+    mkdir -p "$BACKEND_DIR"
+fi
+
+cd $BACKEND_DIR
+npm install > /dev/null 2>&1
+
+# Create systemd service for the backend API
+cat > /etc/systemd/system/nexus-api.service << APISVCEOF
+[Unit]
+Description=Nexus Pro Backend API
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=$BACKEND_DIR
+ExecStart=/usr/bin/node server.js
+Restart=always
+Environment=API_PORT=3001
+Environment=NODE_ENV=production
+
+[Install]
+WantedBy=multi-user.target
+APISVCEOF
+
+systemctl daemon-reload
+systemctl enable nexus-api > /dev/null 2>&1
+echo -e "${GREEN}[✓] Backend API installé${NC}"
+
+echo -e "${GREEN}[✓] Panel web configuré${NC}"
 
 # Nginx configuration
 cat > /etc/nginx/sites-available/nexus-panel << NGINXEOF
@@ -506,6 +528,13 @@ server {
 
     root $BUILD_DIR;
     index index.html;
+
+    # API proxy to backend
+    location /api {
+        proxy_pass http://127.0.0.1:3001;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+    }
 
     # SPA routing
     location / {
@@ -592,7 +621,11 @@ echo -e "${GREEN}[✓] Nginx + SSL + Panel Web configurés${NC}"
 # ===========================
 # SAVE CONFIG & CREATE NEXUS COMMAND
 # ===========================
-echo -e "${PURPLE}[8/8] ${WHITE}Finalisation...${NC}"
+echo -e "${PURPLE}[9/9] ${WHITE}Finalisation...${NC}"
+
+# Start the backend API
+systemctl start nexus-api > /dev/null 2>&1
+echo -e "${GREEN}[✓] Backend API démarré${NC}"
 
 # Save configuration
 cat > $NEXUS_CONFIG << CFGEOF

@@ -1,22 +1,22 @@
-import { useState } from 'react';
-import { getSiteSettings, saveSiteSettings } from '@/lib/store';
+import { useState, useEffect } from 'react';
+import * as api from '@/lib/api';
+import { SiteSettings } from '@/lib/types';
+import { toast } from 'sonner';
 import { Palette, Monitor, Type } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export default function AdminAppearance() {
-  const [settings, setSettings] = useState(getSiteSettings());
-  const [saved, setSaved] = useState(false);
-
-  const update = (field: string, value: any) => {
-    setSettings(prev => ({ ...prev, [field]: value }));
-    setSaved(false);
+  const [settings, setSettings] = useState<SiteSettings | null>(null);
+  const [saving, setSaving] = useState(false);
+  useEffect(() => { api.getSiteSettings().then(setSettings).catch(() => {}); }, []);
+  const update = (field: string, value: any) => setSettings(prev => prev ? { ...prev, [field]: value } : prev);
+  const handleSave = async () => {
+    if (!settings) return;
+    setSaving(true);
+    try { await api.saveSiteSettings(settings); toast.success('Sauvegardé'); } catch (err: any) { toast.error(err.message); }
+    setSaving(false);
   };
-
-  const handleSave = () => {
-    saveSiteSettings(settings);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
-  };
+  if (!settings) return <div className="p-8 text-center text-muted-foreground">Chargement...</div>;
 
   return (
     <div className="space-y-6">
@@ -109,8 +109,7 @@ export default function AdminAppearance() {
       </div>
 
       <div className="flex items-center gap-3">
-        <button onClick={handleSave} className="btn-primary">Sauvegarder les Modifications</button>
-        {saved && <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-sm text-success">✓ Modifications sauvegardées</motion.span>}
+        <button onClick={handleSave} disabled={saving} className="btn-primary">{saving ? 'Sauvegarde...' : 'Sauvegarder'}</button>
       </div>
     </div>
   );

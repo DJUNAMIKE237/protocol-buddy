@@ -1,20 +1,21 @@
-import { useState } from 'react';
-import { getServerConfig, saveServerConfig } from '@/lib/store';
+import { useState, useEffect } from 'react';
+import * as api from '@/lib/api';
+import { ServerConfig } from '@/lib/types';
+import { toast } from 'sonner';
 import { motion } from 'framer-motion';
 
 export default function AdminServer() {
-  const [config, setConfig] = useState(getServerConfig());
-  const [saved, setSaved] = useState(false);
-
-  const updateField = (field: string, value: string) => {
-    setConfig(prev => ({ ...prev, [field]: value }));
+  const [config, setConfig] = useState<ServerConfig | null>(null);
+  const [saving, setSaving] = useState(false);
+  useEffect(() => { api.getServerConfig().then(setConfig).catch(() => {}); }, []);
+  const updateField = (field: string, value: string) => setConfig(prev => prev ? { ...prev, [field]: value } : prev);
+  const handleSave = async () => {
+    if (!config) return;
+    setSaving(true);
+    try { await api.saveServerConfig(config); toast.success('Sauvegardé'); } catch (err: any) { toast.error(err.message); }
+    setSaving(false);
   };
-
-  const handleSave = () => {
-    saveServerConfig(config);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
-  };
+  if (!config) return <div className="p-8 text-center text-muted-foreground">Chargement...</div>;
 
   return (
     <div className="space-y-6">
@@ -45,8 +46,7 @@ export default function AdminServer() {
           ))}
         </div>
         <div className="flex items-center gap-3 mt-6">
-          <button onClick={handleSave} className="btn-primary">Sauvegarder</button>
-          {saved && <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-sm text-success">✓ Sauvegardé</motion.span>}
+          <button onClick={handleSave} disabled={saving} className="btn-primary">{saving ? 'Sauvegarde...' : 'Sauvegarder'}</button>
         </div>
       </div>
     </div>

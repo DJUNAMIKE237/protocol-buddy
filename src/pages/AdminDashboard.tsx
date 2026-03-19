@@ -1,15 +1,21 @@
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/auth-context';
-import { getProtocols, getActivityLog } from '@/lib/store';
+import * as api from '@/lib/api';
 import { Users, Zap, CreditCard, Activity, TrendingUp, Shield } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export default function AdminDashboard() {
   const { user, users, accounts } = useAuth();
+  const [protocols, setProtocols] = useState<any[]>([]);
+  const [activityLog, setActivityLog] = useState<api.ActivityEntry[]>([]);
+
+  useEffect(() => {
+    api.getProtocols().then(setProtocols).catch(() => {});
+    api.getActivityLog().then(setActivityLog).catch(() => {});
+  }, []);
+
   const resellers = users.filter(u => u.role === 'reseller');
   const admins = users.filter(u => u.role === 'admin' || u.role === 'super_admin');
-  const protocols = getProtocols();
-  const activityLog = getActivityLog();
-
   const activeResellers = resellers.filter(r => r.isActive).length;
   const activeAccounts = accounts.filter(a => a.isActive).length;
   const enabledProtocols = protocols.filter(p => p.isEnabled).length;
@@ -53,8 +59,7 @@ export default function AdminDashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.4 }} className="glass-card p-6">
           <h2 className="text-lg font-display font-semibold text-foreground mb-4 flex items-center gap-2">
-            <TrendingUp className="w-5 h-5 text-primary" />
-            Activité Récente
+            <TrendingUp className="w-5 h-5 text-primary" /> Activité Récente
           </h2>
           <div className="space-y-3">
             {activityLog.length === 0 && (
@@ -86,8 +91,7 @@ export default function AdminDashboard() {
 
         <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.5 }} className="glass-card p-6">
           <h2 className="text-lg font-display font-semibold text-foreground mb-4 flex items-center gap-2">
-            <Shield className="w-5 h-5 text-accent" />
-            Résumé du Système
+            <Shield className="w-5 h-5 text-accent" /> Résumé du Système
           </h2>
           <div className="space-y-4">
             <div className="flex justify-between items-center">

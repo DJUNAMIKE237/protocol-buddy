@@ -1,14 +1,14 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/auth-context';
-import { getProtocols, getServerConfig } from '@/lib/store';
-import { ProtocolType, VPNAccount } from '@/lib/types';
-import { formatConfig } from '@/lib/config-formatter';
+import * as api from '@/lib/api';
+import { ProtocolType, Protocol } from '@/lib/types';
 import ConfigOutput from '@/components/ConfigOutput';
 import { Loader2, Lock } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { toast } from 'sonner';
 
 export default function ResellerCreateAccount() {
-  const { user, addAccount } = useAuth();
+  const { user, refreshAll } = useAuth();
   const [selectedProtocol, setSelectedProtocol] = useState<ProtocolType>('ssh');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -17,68 +17,66 @@ export default function ResellerCreateAccount() {
   const [useCustomDuration, setUseCustomDuration] = useState(false);
   const [loading, setLoading] = useState(false);
   const [generatedConfig, setGeneratedConfig] = useState('');
+  const [protocols, setProtocols] = useState<Protocol[]>([]);
 
-  const protocols = getProtocols();
-  const serverCfg = getServerConfig();
+  useEffect(() => {
+    api.getProtocols().then(setProtocols).catch(() => {});
+  }, []);
 
-  // Only show protocols in the reseller's bouquet
   const allowedProtocols = user?.bouquet?.map(b => b.protocolId) || [];
   const availableProtocols = protocols.filter(p => p.isEnabled && allowedProtocols.includes(p.id));
 
   const currentQuota = user?.bouquet?.find(b => b.protocolId === selectedProtocol);
   const canCreate = currentQuota ? currentQuota.usedAccounts < currentQuota.maxAccounts : false;
 
-  // Calculate max allowed duration (can't exceed reseller's own expiry)
   const getMaxDays = () => {
     if (!user?.expiryDate) return 360;
     const diff = new Date(user.expiryDate).getTime() - Date.now();
     return Math.max(1, Math.floor(diff / 86400000));
   };
   const maxDays = getMaxDays();
-
-  // Generate available duration options (only up to maxDays)
   const durationOptions = [1, 7, 30, 60, 90, 180, 360].filter(d => d <= maxDays);
 
-  const handleGenerate = () => {
-    if (!username.trim() || !password.trim() || !canCreate) return;
+  // Remaining time display
+  const getRemainingTime = () => {
+    if (!user?.expiryDate) return '';
+    const diff = new Date(user.expiryDate).getTime() - Date.now();
+    if (diff <= 0) return '⚠️ Compte expiré';
+    const days = Math.floor(diff / 86400000);
+    const hours = Math.floor((diff % 86400000) / 3600000);
+    const mins = Math.floor((diff % 3600000) / 60000);
+    return `⏱️ ${days}j ${hours}h ${mins}m restants`;
+  };
+
+  const [remainingTime, setRemainingTime] = useState(getRemainingTime());
+  useEffect(() => {
+    const timer = setInterval(() => setRemainingTime(getRemainingTime()), 60000);
+    return () => clearInterval(timer);
+  }, [user]);
+
+  const handleGenerate = async () => {
+    if (!username.trim() || !password.trim() || !canCreate || loading) return;
     setLoading(true);
     setGeneratedConfig('');
 
-    setTimeout(() => {
+    try {
       let days = useCustomDuration ? parseInt(customDuration) || 1 : parseInt(duration);
-      days = Math.min(days, maxDays); // Enforce max
+      days = Math.min(days, maxDays);
 
-      const now = new Date();
-      const expiry = new Date(now.getTime() + days * 86400000);
-      const expiryStr = expiry.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      const result = await api.createAccount({
+        protocol: selectedProtocol, username: username.trim(),
+        password, duration: days,
+      });
 
-      const config = formatConfig(
-        { username, password, expiryDate: expiryStr, protocol: selectedProtocol },
-        serverCfg,
-      );
-
-      // Create the VPN account record
-      const account: VPNAccount = {
-        id: Date.now().toString(),
-        protocol: selectedProtocol,
-        username: username.trim(),
-        password,
-        expiryDate: expiry.toISOString().split('T')[0],
-        createdAt: now.toISOString().split('T')[0],
-        createdBy: user?.id || '',
-        serverIp: serverCfg.ip,
-        domain: serverCfg.domain,
-        nsDomain: serverCfg.nsDomain,
-        isActive: true,
-        config,
-      };
-
-      addAccount(account);
-      setGeneratedConfig(config);
-      setLoading(false);
+      setGeneratedConfig(result.config);
+      toast.success(`Compte ${selectedProtocol.toUpperCase()} créé sur le serveur`);
+      await refreshAll();
       setUsername('');
       setPassword('');
-    }, 1500);
+    } catch (err: any) {
+      toast.error(err.message || 'Erreur lors de la création');
+    }
+    setLoading(false);
   };
 
   return (
@@ -91,9 +89,9 @@ export default function ResellerCreateAccount() {
           Sélectionnez un protocole et générez les identifiants
           <span className="text-primary ml-2">(max {maxDays} jours)</span>
         </p>
+        <p className="text-xs text-accent mt-1 font-mono">{remainingTime}</p>
       </motion.div>
 
-      {/* Protocol Selector */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {availableProtocols.map((proto, i) => {
           const quota = user?.bouquet?.find(b => b.protocolId === proto.id);
@@ -125,7 +123,6 @@ export default function ResellerCreateAccount() {
         </div>
       )}
 
-      {/* Form */}
       {availableProtocols.length > 0 && (
         <div className="glass-card p-6">
           <h2 className="text-lg font-display font-semibold text-foreground mb-4">
@@ -165,7 +162,7 @@ export default function ResellerCreateAccount() {
             disabled={loading || !username.trim() || !password.trim() || !canCreate}
             className="btn-primary w-full mt-6 disabled:opacity-50 flex items-center justify-center gap-2 text-base tracking-wider">
             {loading ? (
-              <><Loader2 className="w-5 h-5 animate-spin" />Processing on Server...</>
+              <><Loader2 className="w-5 h-5 animate-spin" />Création sur le serveur...</>
             ) : 'GÉNÉRER LES IDENTIFIANTS'}
           </button>
         </div>
