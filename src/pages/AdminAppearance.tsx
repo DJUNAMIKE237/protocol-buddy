@@ -6,19 +6,17 @@ import { Palette, Monitor, Type } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export default function AdminAppearance() {
-  const [settings, setSettings] = useState(getSiteSettings());
-  const [saved, setSaved] = useState(false);
-
-  const update = (field: string, value: any) => {
-    setSettings(prev => ({ ...prev, [field]: value }));
-    setSaved(false);
+  const [settings, setSettings] = useState<SiteSettings | null>(null);
+  const [saving, setSaving] = useState(false);
+  useEffect(() => { api.getSiteSettings().then(setSettings).catch(() => {}); }, []);
+  const update = (field: string, value: any) => setSettings(prev => prev ? { ...prev, [field]: value } : prev);
+  const handleSave = async () => {
+    if (!settings) return;
+    setSaving(true);
+    try { await api.saveSiteSettings(settings); toast.success('Sauvegardé'); } catch (err: any) { toast.error(err.message); }
+    setSaving(false);
   };
-
-  const handleSave = () => {
-    saveSiteSettings(settings);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
-  };
+  if (!settings) return <div className="p-8 text-center text-muted-foreground">Chargement...</div>;
 
   return (
     <div className="space-y-6">
