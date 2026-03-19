@@ -529,6 +529,13 @@ server {
     root $BUILD_DIR;
     index index.html;
 
+    # API proxy to backend
+    location /api {
+        proxy_pass http://127.0.0.1:3001;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+    }
+
     # SPA routing
     location / {
         try_files \$uri \$uri/ /index.html;
