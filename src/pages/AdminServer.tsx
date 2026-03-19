@@ -46,8 +46,7 @@ export default function AdminServer() {
           ))}
         </div>
         <div className="flex items-center gap-3 mt-6">
-          <button onClick={handleSave} className="btn-primary">Sauvegarder</button>
-          {saved && <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-sm text-success">✓ Sauvegardé</motion.span>}
+          <button onClick={handleSave} disabled={saving} className="btn-primary">{saving ? 'Sauvegarde...' : 'Sauvegarder'}</button>
         </div>
       </div>
     </div>

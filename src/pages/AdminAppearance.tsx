@@ -109,8 +109,7 @@ export default function AdminAppearance() {
       </div>
 
       <div className="flex items-center gap-3">
-        <button onClick={handleSave} className="btn-primary">Sauvegarder les Modifications</button>
-        {saved && <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-sm text-success">✓ Modifications sauvegardées</motion.span>}
+        <button onClick={handleSave} disabled={saving} className="btn-primary">{saving ? 'Sauvegarde...' : 'Sauvegarder'}</button>
       </div>
     </div>
   );
