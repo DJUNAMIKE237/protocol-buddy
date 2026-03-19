@@ -621,7 +621,11 @@ echo -e "${GREEN}[✓] Nginx + SSL + Panel Web configurés${NC}"
 # ===========================
 # SAVE CONFIG & CREATE NEXUS COMMAND
 # ===========================
-echo -e "${PURPLE}[8/8] ${WHITE}Finalisation...${NC}"
+echo -e "${PURPLE}[9/9] ${WHITE}Finalisation...${NC}"
+
+# Start the backend API
+systemctl start nexus-api > /dev/null 2>&1
+echo -e "${GREEN}[✓] Backend API démarré${NC}"
 
 # Save configuration
 cat > $NEXUS_CONFIG << CFGEOF
