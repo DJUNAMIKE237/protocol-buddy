@@ -1,5 +1,7 @@
-import { useState } from 'react';
-import { getSiteSettings, saveSiteSettings } from '@/lib/store';
+import { useState, useEffect } from 'react';
+import * as api from '@/lib/api';
+import { SiteSettings } from '@/lib/types';
+import { toast } from 'sonner';
 import { Palette, Monitor, Type } from 'lucide-react';
 import { motion } from 'framer-motion';
 
